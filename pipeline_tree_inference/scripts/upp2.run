@@ -1,0 +1,71 @@
+#!/bin/bash
+#SBATCH -c 2			# number of "cores"
+#SBATCH --mem=10G		# memory for job. Default is 2G
+#SBATCH -t 1-00:00:00		# time in d-hh:mm:ss
+#SBATCH -p general		# partition
+#SBATCH -q public		# Qiyun's partition
+#SBATCH -o slurm.%A_%a.out	# file to save STDOUT for each sub-job
+#SBATCH -e slurm.%A_%a.err	# file to save STDERR for each sub-job
+#SBATCH --export=NONE		# Purge the job-submitting shell environment
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user="%u@asu.edu"
+
+# Manifest file is provided
+# Execute script as: sbatch -a 1-row_manifest upp2.run.sh manifest database combination
+# sbatch -a 1-10 upp2.run /data/qzhu44/marker_genes_project/data/wol2/eggnog/copy_number_first_strategy/bit_score_threshold_1.0/backbone_number.txt eggnog k_10_p_0
+
+# Parse manifest file
+manifest="${1:?ERROR -- must pass a manifest file}"
+taskid=$SLURM_ARRAY_TASK_ID
+gene=$(getline $taskid $manifest | cut -d "," -f 1)
+backbone_number=$(getline $taskid $manifest | cut -d "," -f 2)
+
+
+# Set up sbatch parameters and environment
+module purge
+module load mamba/latest
+source activate MGpipeline
+
+# Create tmp dir in scratch and remove at exit
+export TMPDIR=/scratch/$USER/marker_genes/alignments
+tmp=$(mktemp -d --tmpdir)
+export TMPDIR=$tmp
+trap "rm -r $tmp; unset TMPDIR" EXIT
+
+# Software path
+upp_dir=/home/$USER/marker_genes/tools/sepp-code/sepp/
+# Data paths
+# Remember to create directory and subdirectories
+th_copy=1.0
+database="${2:?ERROR -- must pass a database name}"
+combination="${3:?ERROR -- must pass a combination of parameters of the form k_x_p_x}"
+input=/data/qzhu44/marker_genes_project/data/wol2/${database}/copy_number_first_strategy/min_marker_genes_per_genome/bit_score_threshold_${th_copy}/${combination}/proteins
+output=/data/qzhu44/marker_genes_project/${USER}/wol2/${database}/copy_number_first_strategy/min_marker_genes_per_genome/bit_score_threshold_${th_copy}/${combination}/alignments
+
+
+# If the number of sequences in the backbone is higher than 500
+# assign it to 500 otherwise backbone alignment is too expensive
+if [ "$backbone_number" -gt 500 ]; then
+	backbone_number=500
+fi
+# Generate config files
+file=${tmp}/config_${gene}.txt
+echo "[commandline]" >> ${file}
+echo "sequence_file=${input}/${gene}.fasta" >> $file
+echo "molecule=amino" >> $file
+echo "cpu=$(nproc)" >> $file
+echo "tempdir=${tmp}" >> ${file}
+echo "outdir=${tmp}" >> ${file}
+echo "backboneSize=${backbone_number}" >> ${file}
+echo "output=${gene}" >> ${file}
+echo "[upp2]" >> ${file}
+echo "decomp_only=True" >> ${file}
+echo "bitscore_adjust=True" >> ${file}
+echo "hier_upp=True" >> ${file}
+
+
+# Run UPP2
+echo "Running upp2 on $gene"
+python3 ${upp_dir}/run_upp.py -c $file
+# Move alignment to output
+mv ${tmp}/${gene}_alignment_masked.fasta ${output}

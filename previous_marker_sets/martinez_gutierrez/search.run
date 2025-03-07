@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Parameters
+set -e
+cpus=16
+
+# Software path
+hmm_dir=/mnt/scratch0/hsecaira/BipNet/hmm/hmmer-3.4/src
+
+# Data path
+#proteins=/mnt/store0/dbs/wol2/proteins
+output=/mnt/scratch0/hsecaira/BipNet/hmm
+
+# Run hmmsearch to find homologs of 41 SCG in genomes from WoL v2
+${hmm_dir}/hmmsearch --noali --cpu ${cpus} -E 1e-5 --tblout ${output}/martinez_gutierrez/41_scg_hits.txt ${output}/martinez_gutierrez/embl.hmm ${output}/proteins/all.faa
+
+echo "Done!"

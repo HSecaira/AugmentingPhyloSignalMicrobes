@@ -1,0 +1,48 @@
+#!/bin/bash
+#SBATCH -c 1                    # number of "cores"
+#SBATCH --mem=10G                # memory for job. Default is 2G
+#SBATCH -t 1-00:00:00           # time in d-hh:mm:ss
+#SBATCH -p general              # partition
+#SBATCH -q public		# QOS
+#SBATCH -e slurm.%A_%a.err      # file to save STDERR for each sub-job
+#SBATCH --export=NONE           # Purge the job-submitting shell environment
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user="%u@asu.edu"
+
+# Manifest file is provided
+# Execute script as: sbatch -a 1-row_manifest taper.run manifest
+# sbatch -a 1-10 taper.run /data/qzhu44/marker_genes_project/data/wol2/eggnog/copy_number_first_strategy/bit_score_threshold_1.0/backbone_number.txt eggnog k_10_p_0
+
+# Parse manifest file
+manifest="${1:?ERROR -- must pass a manifest file}"
+taskid=$SLURM_ARRAY_TASK_ID
+gene=$(getline $taskid $manifest | cut -d "," -f 1)
+
+# Set up sbatch parameters and environment
+module purge
+module load mamba/latest
+source activate MGpipeline
+
+# Create tmp dir in scratch and remove at exit
+export TMPDIR=/scratch/$USER/marker_genes/trim
+tmp=$(mktemp -d --tmpdir)
+export TMPDIR=$tmp
+trap "rm -r $tmp; unset TMPDIR" EXIT
+
+# Software path
+julia_dir=/home/$USER/marker_genes/tools/taper-code/julia-1.9.0/bin
+taper_dir=/home/$USER/marker_genes/tools/taper-code/TAPER
+
+# Data paths
+# Remember to create directory and subdirectories
+th_copy=1.0
+database="${2:?ERROR -- must pass a database name}"
+combination="${3:?ERROR -- must pass a combination of parameters of the form k_x_p_x}"
+input=/data/qzhu44/marker_genes_project/${USER}/wol2/${database}/copy_number_first_strategy/min_marker_genes_per_genome/bit_score_threshold_${th_copy}/${combination}/alignments
+output=/data/qzhu44/marker_genes_project/${USER}/wol/${database}/copy_number_first_strategy/min_marker_genes_per_genome/bit_score_threshold_${th_copy}/${combination}/trim
+
+# Run TAPER
+echo "Running TAPER on $gene"
+${julia_dir}/julia ${taper_dir}/correction_multi.jl ${input}/${gene}_alignment_masked.fasta > ${tmp}/${gene}_trim.fasta
+# Move alignment to output
+mv ${tmp}/${gene}_trim.fasta ${output}/${gene}_trim.fasta

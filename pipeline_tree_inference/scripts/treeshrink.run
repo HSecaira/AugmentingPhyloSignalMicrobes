@@ -1,0 +1,45 @@
+#!/bin/bash
+#SBATCH -c 1                    # number of "cores"
+#SBATCH -t 1-00:00:00           # time in d-hh:mm:ss
+#SBATCH -p general              # partition
+#SBATCH -q grp_lliu80		# QOS
+#SBATCH -e slurm.%A_%a.err      # file to save STDERR for each sub-job
+#SBATCH --export=NONE           # Purge the job-submitting shell environment
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user="%u@asu.edu"
+
+# Manifest file is provided
+# Execute script as: sbatch -a 1-row_manifest treeshrink.run manifest
+# sbatch -a 1-8 treeshrink.run manifest/criteria.txt eggnog
+
+# Parse manifest file
+manifest="${1:?ERROR -- must pass a manifest file}"
+taskid=$SLURM_ARRAY_TASK_ID
+genes=$(getline $taskid $manifest) # of the format k_${k}_p_${p}
+
+# Set up sbatch parameters and environment
+module purge
+module load mamba/latest
+source activate MGpipeline
+
+# Create tmp dir in scratch and remove at exit
+export TMPDIR=/scratch/${USER}/marker_genes/select_criteria
+tmp=$(mktemp -d --tmpdir)
+export TMPDIR=$tmp
+trap "rm -r $tmp; unset TMPDIR" EXIT
+
+# Software path
+treeshrink_dir=/home/${USER}/marker_genes/tools/treeshrink-code/TreeShrink
+
+# Data paths
+# Remember to create directory and subdirectories
+th_copy=1.0
+database="${2:?ERROR -- must pass a database name}"
+input=/data/qzhu44/marker_genes_project/${USER}/wol2/${database}/copy_number_first_strategy/min_marker_genes_per_genome/bit_score_threshold_${th_copy}/${genes}/select_criteria/presence_absence_copies
+output=/data/qzhu44/marker_genes_project/${USER}/wol2/${database}/copy_number_first_strategy/min_marker_genes_per_genome/bit_score_threshold_${th_copy}/${genes}/select_criteria/presence_absence_copies
+
+echo "Genes: ${genes}"
+# Run TreeShrink
+python3 $treeshrink_dir/run_treeshrink.py -t ${input}/select_${genes}.trees -o ${tmp}/shrink --force
+# Move output
+mv ${tmp}/shrink/output.trees ${output}/select_${genes}_shrink.trees

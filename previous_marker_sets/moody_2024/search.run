@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Parameters
+set -e
+cpus=16
+
+# Software path
+hmm_dir=/mnt/scratch0/hsecaira/BipNet/hmm/hmmer-3.4/src
+
+# Data path
+proteins=/mnt/scratch0/hsecaira/BipNet/hmm/data/wol2
+input=/mnt/scratch0/hsecaira/BipNet/hmm/moody_2024/pHMMs
+output=/mnt/scratch0/hsecaira/BipNet/hmm/moody_2024/wol2
+
+# Run hmmsearch to find homologs of 41 SCG in genomes from WoL v2
+${hmm_dir}/hmmsearch --noali --cpu ${cpus} -E 1e-5 --tblout ${output}/moody_scg_hits_wol2.txt ${input}/moody_scg.hmm ${proteins}/genomes_sampled_family_10.faa
+
+echo "Done!"

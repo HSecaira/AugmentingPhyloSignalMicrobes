@@ -1,0 +1,21 @@
+# Eggnog-mapper script
+
+# Parameters
+export EGGNOG_DATA_DIR=/mnt/store0/dbs/eggnog
+tmpdir=$(mktemp -d)
+
+# Activate environment
+source activate eggnog-mapper
+
+# Variables
+input=$1
+output=$2
+
+# Execute
+emapper.py -i $input -o $output --cpu 16 --temp_dir $tmpdir
+# Remove temporary file
+rm -rf $tmpdir
+
+echo "Done!"
+
+

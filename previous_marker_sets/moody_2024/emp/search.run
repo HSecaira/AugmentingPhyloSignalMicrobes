@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Parameters
+set -e
+cpus=16
+# FIle containing bins names
+file=$1
+
+# Software path
+hmm_dir=/mnt/scratch0/hsecaira/BipNet/hmm/hmmer-3.4/src
+
+# Data path
+proteins=/mnt/scratch0/hsecaira/BipNet/hmm/data/emp500/input_genomes
+input=/mnt/scratch0/hsecaira/BipNet/hmm/moody_2024/pHMMs
+output=/mnt/scratch0/hsecaira/BipNet/hmm/moody_2024/emp500
+
+# Run hmmsearch to find homologs of 41 SCG in genomes from WoL v2
+while read bi; do
+	echo "Bin ${bi}"
+	${hmm_dir}/hmmsearch --noali --cpu ${cpus} -E 1e-5 --tblout ${output}/moody_scg_hits_${bi}.txt ${input}/moody_scg.hmm ${proteins}/${bi}.faa
+done < ${file}
+echo "Done!"

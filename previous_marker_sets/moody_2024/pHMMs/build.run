@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Parameters
+set -e
+cpus=4
+# File containing the gene names
+file=$1
+
+# Software path
+hmm_dir=/mnt/scratch0/hsecaira/BipNet/hmm/hmmer-3.4/src
+
+# Data path
+#proteins=/mnt/store0/dbs/wol2/proteins
+input=/mnt/scratch0/hsecaira/BipNet/hmm/moody_2024/Sequences_and_Alignments
+output=/mnt/scratch0/hsecaira/BipNet/hmm/moody_2024/pHMMs
+
+# Run hmmbuild to build pHMMs from MSAs
+while read gene; do
+	echo ${gene}
+	${hmm_dir}/hmmbuild --cpu ${cpus} ${output}/${gene}_BMGE.hmm ${input}/${gene}_mafft_BMGE.faa
+done < ${file}
+
+# Concatenate all pHMMs into a single file
+while read gene; do
+	cat ${output}/${gene}_BMGE.hmm >> ${output}/moody_scg_BMGE.hmm
+done < ${file}
+
+echo "Done!"

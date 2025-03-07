@@ -1,0 +1,20 @@
+# Eggnog-mapper script
+
+# Parameters
+tmpdir=$(mktemp -d)
+
+# Activate environment
+source activate kofamscan
+
+# Variables
+input=$1
+output=$2
+profiles=$3
+list=$4
+
+# Execute
+exec_annotation -f detail-tsv --no-report-unannotated -o $output -p $profiles -k $list --cpu 8 --tmp-dir $tmpdir $input
+# Remove temporary file
+rm -rf $tmpdir
+
+echo "Done!"
